@@ -155,6 +155,10 @@ impl Contract {
             .collect()
     }
 
+    pub fn get_users_length(&self) -> u32 {
+        self.users.len()
+    }
+
     fn calculate_hash(&self, a: &str, b: &str) -> CryptoHash {
         let concatenated_string = format!("{}{}", a, b);
 
@@ -171,6 +175,8 @@ impl Contract {
 mod tests {
     use near_sdk::{test_utils::*, testing_env, AccountId, ONE_NEAR};
 
+    use crate::Contract;
+
     fn contract_account() -> AccountId {
         "contract".parse::<AccountId>().unwrap()
     }
@@ -186,5 +192,10 @@ mod tests {
     }
 
     #[test]
-    fn test() {}
+    fn test() {
+        // let context = get_context("alice.near".parse().unwrap());
+        let contract = Contract::new();
+
+        assert_eq!(contract.get_users_length(), 0);
+    }
 }

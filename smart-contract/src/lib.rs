@@ -1,5 +1,7 @@
+mod chat;
 mod contract;
-pub use contract::*;
+pub use chat::*;
+// pub use contract::*;
 
 #[allow(dead_code, unused)]
 #[cfg(all(test, not(target_arch = "wasm32")))]

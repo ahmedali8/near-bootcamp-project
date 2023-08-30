@@ -127,16 +127,32 @@ impl Contract {
         self.calculate_hash(user_id.as_str(), receiver_id.as_str())
     }
 
-    pub fn get_messages(&self, user_id: AccountId, receiver_id: AccountId) -> &Vector<Message> {
+    pub fn get_messages(
+        &self,
+        user_id: AccountId,
+        receiver_id: AccountId,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> Vec<&Message> {
         let chat_id: CryptoHash = self.get_chat_id(user_id, receiver_id);
 
         self.messages
             .get(&chat_id)
             .unwrap_or_else(|| env::panic_str("The user does not have any messages."))
+            .iter()
+            .rev()
+            .skip(offset.unwrap_or(0) as usize)
+            .take(limit.unwrap_or(10) as usize)
+            .collect::<Vec<&Message>>()
+    }
 
-        // let b = *a;
-        // todo!()
-        // a
+    pub fn get_users(&self, limit: Option<u32>, offset: Option<u32>) -> Vec<&AccountId> {
+        self.users
+            .iter()
+            .rev()
+            .skip(offset.unwrap_or(0) as usize)
+            .take(limit.unwrap_or(10) as usize)
+            .collect()
     }
 
     fn calculate_hash(&self, a: &str, b: &str) -> CryptoHash {

@@ -70,13 +70,25 @@ impl Contract {
 
         require!(user_id != friend_id, "You cannot add yourself as friend.");
 
+        // let is_friend_added_to_user =
         let friends = self.friends.entry(user_id.clone()).or_insert_with(|| {
             LookupMap::new(StorageKey::FriendOfUser {
                 user_id: user_id.clone(),
             })
         });
+        friends.insert(friend_id.clone(), true);
+        // .unwrap_or_else(|| env::panic_str("Friend not added to User."));
 
+        // let is_user_added_to_friend =
+        let friends = self.friends.entry(friend_id.clone()).or_insert_with(|| {
+            LookupMap::new(StorageKey::FriendOfUser {
+                user_id: friend_id.clone(),
+            })
+        });
         friends.insert(user_id, true);
+        // .unwrap_or_else(|| env::panic_str("User not added to Friend."));
+
+        // is_friend_added_to_user && is_user_added_to_friend
     }
 
     pub fn send_message(&mut self, receiver_id: AccountId, message_content: String) -> CryptoHash {
@@ -99,11 +111,11 @@ impl Contract {
             .contains_key(&receiver_id);
 
         require!(
-            !is_valid_friend,
+            is_valid_friend,
             "You are not friends with the given receiver."
         );
 
-        require!(message_content.is_empty(), "The message can not be empty.");
+        require!(!message_content.is_empty(), "The message can not be empty.");
 
         let chat_id: CryptoHash = self.get_chat_id(user_id.clone(), receiver_id);
 
@@ -173,7 +185,10 @@ impl Contract {
 #[allow(dead_code, unused)]
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
-    use near_sdk::{test_utils::*, testing_env, AccountId, ONE_NEAR};
+    use near_sdk::{
+        test_utils::{accounts, VMContextBuilder},
+        testing_env, AccountId, ONE_NEAR,
+    };
 
     use crate::Contract;
 
@@ -192,10 +207,82 @@ mod tests {
     }
 
     #[test]
-    fn test() {
-        // let context = get_context("alice.near".parse().unwrap());
+    fn test_new() {
+        let mut context = get_context(accounts(1));
+        testing_env!(context.build());
         let contract = Contract::new();
-
+        testing_env!(context.is_view(true).build());
         assert_eq!(contract.get_users_length(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "The contract is not initialized")]
+    fn test_default() {
+        let context = get_context(accounts(1));
+        testing_env!(context.build());
+        let _contract = Contract::default();
+    }
+
+    #[test]
+    fn test_create_account() {
+        let user = accounts(2);
+        let mut context = get_context(user.clone());
+        testing_env!(context.build());
+        let mut contract = Contract::new();
+
+        let is_valid_user = contract.create_account();
+        assert!(is_valid_user);
+
+        let is_valid_user = contract.users.contains(&user);
+        assert!(is_valid_user);
+
+        let users = contract.get_users(None, None);
+        let is_valid_user = users.contains(&&user);
+        assert!(is_valid_user);
+    }
+
+    #[test]
+    fn test_add_friend() {
+        let user = accounts(2);
+        let friend = accounts(3);
+
+        let mut context = get_context(user.clone());
+        testing_env!(context.build());
+        let mut contract = Contract::new();
+
+        let is_valid_user = contract.create_account();
+        assert!(is_valid_user);
+
+        testing_env!(context.predecessor_account_id(friend.clone()).build());
+        let is_valid_user = contract.create_account();
+        assert!(is_valid_user);
+
+        assert_eq!(contract.get_users_length(), 2);
+
+        testing_env!(context.predecessor_account_id(user.clone()).build());
+        contract.add_friend(friend.clone());
+        let is_friend_added = contract.friends.get(&user).unwrap().get(&friend).unwrap();
+        assert!(*is_friend_added);
+    }
+
+    #[test]
+    fn test_send_message() {
+        let user = accounts(2);
+        let friend = accounts(3);
+
+        let mut context = get_context(user.clone());
+        testing_env!(context.build());
+        let mut contract = Contract::new();
+        contract.create_account();
+        testing_env!(context.predecessor_account_id(friend.clone()).build());
+        contract.create_account();
+        testing_env!(context.predecessor_account_id(user.clone()).build());
+        contract.add_friend(friend.clone());
+
+        testing_env!(context.predecessor_account_id(user.clone()).build());
+
+        let chat_id = contract.send_message(friend, "Hello World!".to_string());
+        let is_message_added = contract.messages.contains_key(&chat_id);
+        assert!(is_message_added);
     }
 }

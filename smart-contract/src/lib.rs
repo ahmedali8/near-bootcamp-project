@@ -31,7 +31,7 @@ pub struct Contract {
     pub friends: LookupMap<AccountId, LookupMap<AccountId, bool>>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Message {
     pub author: AccountId,
@@ -282,6 +282,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(user.clone()).build());
 
         let chat_id = contract.send_message(friend, "Hello World!".to_string());
+        println!("{:?}", contract.messages.get(&chat_id).unwrap().get(0));
         let is_message_added = contract.messages.contains_key(&chat_id);
         assert!(is_message_added);
     }
